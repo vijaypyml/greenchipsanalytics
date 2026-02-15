@@ -1,7 +1,10 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from datetime import datetime
+import plotly.graph_objects as go
+import plotly.express as px
+import yfinance as yf
+from datetime import datetime, timedelta
 import time
 import os
 import sys
@@ -745,10 +748,6 @@ with tab3:
         st.markdown("##### NIFTY 50 Historical Performance")
 
         # Year selector
-        import yfinance as yf
-        import plotly.graph_objects as go
-        from datetime import datetime, timedelta
-
         col1, col2 = st.columns([4, 1])
         with col1:
             years = st.slider(
@@ -1140,8 +1139,6 @@ with tab1:
     
                         with col_heat:
                             # Monthly Performance Heatmap
-                            import plotly.express as px
-    
                             fig_heatmap = px.imshow(
                                 pivot_data,
                                 labels=dict(x="Month", y="Year", color="Return %"),
