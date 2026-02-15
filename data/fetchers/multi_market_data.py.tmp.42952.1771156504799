@@ -87,18 +87,9 @@ def fetch_sp500_data(limit=100):
                         'Sector': info.get('sector', 'Unknown')
                     })
             except Exception as e:
-                failed_count += 1
-                if failed_count <= 5:  # Log first 5 failures
-                    print(f"Failed to fetch {ticker}: {e}")
                 continue
 
         df = pd.DataFrame(data_list)
-
-        if df.empty:
-            print(f"WARNING: No S&P 500 data fetched. All {limit} tickers failed.")
-        elif failed_count > 0:
-            print(f"WARNING: {failed_count}/{limit} S&P 500 tickers failed to fetch")
-
         return df if not df.empty else pd.DataFrame()
 
     except Exception as e:

@@ -479,9 +479,18 @@ with tab2:
         st.markdown("##### 🔥 Market Heatmap")
 
         if not index_data.empty:
-            render_heatmap(index_data, currency=market_config['currency'], index_name=index_name)
+            # Validate data has required columns before rendering
+            required_cols = ['Symbol', 'Change %', 'Market Cap', 'Sector', 'Price']
+            missing_cols = [col for col in required_cols if col not in index_data.columns]
+
+            if missing_cols:
+                st.error(f"⚠️ Market data is incomplete. Missing: {', '.join(missing_cols)}")
+                st.info("💡 This usually indicates a data fetch issue. Try refreshing the page.")
+            else:
+                render_heatmap(index_data, currency=market_config['currency'], index_name=index_name)
         else:
-            st.error("Failed to load Heatmap data.")
+            st.error(f"❌ Failed to load {index_name} data for heatmap")
+            st.info("💡 Possible reasons:\n- Market is currently closed\n- Data provider (Yahoo Finance) is temporarily unavailable\n- Network connectivity issue\n\n**Try:** Refresh the page or check back when the market is open.")
 
         st.markdown("<br>", unsafe_allow_html=True)
 

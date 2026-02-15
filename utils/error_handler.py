@@ -139,8 +139,15 @@ class ErrorBoundary:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
-            logger.error(f"Error in {self.component_name}: {exc_val}")
+            logger.error(f"Error in {self.component_name}: {exc_val}", exc_info=True)
+
+            # Show detailed error message to help with debugging
             st.error(f"❌ Error loading {self.component_name}")
+
+            # Show error details in expander for debugging
+            with st.expander("🔍 Error Details (for debugging)"):
+                st.code(f"Error Type: {exc_type.__name__}\nError Message: {str(exc_val)}")
+                st.caption("💡 Common fixes: Refresh the page, check internet connection, or try again when market is open.")
 
             if self.fallback_ui:
                 self.fallback_ui()
