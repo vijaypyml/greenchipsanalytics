@@ -89,6 +89,27 @@ NIFTY_50_SYMBOLS = [
     "TECHM.NS", "TITAN.NS", "ULTRACEMCO.NS", "UPL.NS", "WIPRO.NS"
 ]
 
+# NIFTY 50 Sector Mapping (Static to avoid API calls)
+NIFTY_50_SECTORS = {
+    "ADANIENT.NS": "Metals & Mining", "ADANIPORTS.NS": "Infrastructure", "APOLLOHOSP.NS": "Healthcare",
+    "ASIANPAINT.NS": "Consumer Durables", "AXISBANK.NS": "Financial Services", "BAJAJ-AUTO.NS": "Automobile",
+    "BAJFINANCE.NS": "Financial Services", "BAJAJFINSV.NS": "Financial Services", "BPCL.NS": "Oil, Gas & Consumable Fuels",
+    "BHARTIARTL.NS": "Telecommunication", "BRITANNIA.NS": "Fast Moving Consumer Goods", "CIPLA.NS": "Healthcare",
+    "COALINDIA.NS": "Oil, Gas & Consumable Fuels", "DIVISLAB.NS": "Healthcare", "DRREDDY.NS": "Healthcare",
+    "EICHERMOT.NS": "Automobile", "GRASIM.NS": "Construction Materials", "HCLTECH.NS": "Information Technology",
+    "HDFCBANK.NS": "Financial Services", "HDFCLIFE.NS": "Financial Services", "HEROMOTOCO.NS": "Automobile",
+    "HINDALCO.NS": "Metals & Mining", "HINDUNILVR.NS": "Fast Moving Consumer Goods", "ICICIBANK.NS": "Financial Services",
+    "ITC.NS": "Fast Moving Consumer Goods", "INDUSINDBK.NS": "Financial Services", "INFY.NS": "Information Technology",
+    "JSWSTEEL.NS": "Metals & Mining", "KOTAKBANK.NS": "Financial Services", "LTIM.NS": "Information Technology",
+    "LT.NS": "Construction", "M&M.NS": "Automobile", "MARUTI.NS": "Automobile",
+    "NTPC.NS": "Power", "NESTLEIND.NS": "Fast Moving Consumer Goods", "ONGC.NS": "Oil, Gas & Consumable Fuels",
+    "POWERGRID.NS": "Power", "RELIANCE.NS": "Oil, Gas & Consumable Fuels", "SBILIFE.NS": "Financial Services",
+    "SBIN.NS": "Financial Services", "SUNPHARMA.NS": "Healthcare", "TCS.NS": "Information Technology",
+    "TATACONSUM.NS": "Fast Moving Consumer Goods", "TATAMOTORS.NS": "Automobile", "TATASTEEL.NS": "Metals & Mining",
+    "TECHM.NS": "Information Technology", "TITAN.NS": "Consumer Durables", "ULTRACEMCO.NS": "Construction Materials",
+    "UPL.NS": "Chemicals", "WIPRO.NS": "Information Technology"
+}
+
 # Themes
 THEMES = {
     "dark": {

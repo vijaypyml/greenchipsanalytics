@@ -135,7 +135,7 @@ def fetch_market_index_history(market_id, period_years=5):
 
 def fetch_sector_performance(market_id):
     """
-    Fetch sector performance data for a market.
+    Fetch sector performance data for a market using batch download.
 
     Args:
         market_id: Market identifier
@@ -145,18 +145,49 @@ def fetch_sector_performance(market_id):
     """
     market_config = get_market_config(market_id)
     sectors = market_config.get('sectors', {})
+    
+    if not sectors:
+        return {}
 
     sector_data = {}
-    for sector_name, sector_symbol in sectors.items():
-        try:
-            ticker = yf.Ticker(sector_symbol)
-            info = ticker.info
-            hist = ticker.history(period='5d')
+    symbols = list(sectors.values())
+    
+    if not symbols:
+        return {}
 
-            if not hist.empty and info:
-                current_price = hist['Close'].iloc[-1]
-                # Use previousClose from info for accurate comparison
-                prev_close = info.get('previousClose', current_price)
+    # Use batch download to avoid N calls to .info and .history
+    try:
+        data = yf.download(symbols, period="5d", group_by='ticker', progress=False, threads=True)
+        
+        is_multi_index = isinstance(data.columns, pd.MultiIndex)
+
+        for sector_name, sector_symbol in sectors.items():
+            try:
+                hist = pd.DataFrame()
+                if is_multi_index:
+                    if sector_symbol in data.columns.levels[0]:
+                        hist = data[sector_symbol]
+                elif len(symbols) == 1 and symbols[0] == sector_symbol:
+                    hist = data
+                elif not is_multi_index and sector_symbol in symbols: 
+                    # Catch-all if structure is different but symbol matched
+                    # Usually means single symbol but logic failed above
+                     hist = data
+
+                if hist.empty or 'Close' not in hist.columns:
+                    continue
+
+                closes = hist['Close'].dropna()
+                
+                if closes.empty:
+                    continue
+
+                current_price = float(closes.iloc[-1])
+                
+                # Calculate change from previous close (captured in 5d history)
+                # using .iloc[-2] as previous close if available
+                prev_close = float(closes.iloc[-2]) if len(closes) > 1 else current_price
+                
                 change_pct = ((current_price - prev_close) / prev_close * 100) if prev_close > 0 else 0
 
                 sector_data[sector_name] = {
@@ -165,9 +196,13 @@ def fetch_sector_performance(market_id):
                     'change_pct': change_pct,
                     'prev_close': prev_close
                 }
-        except Exception as e:
-            print(f"Error fetching sector {sector_name} ({sector_symbol}): {e}")
-            continue
+            except Exception as e:
+                print(f"Error processing sector {sector_name} ({sector_symbol}): {e}")
+                continue
+
+    except Exception as e:
+        print(f"Error fetching sector data: {e}")
+        return {}
 
     return sector_data
 
