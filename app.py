@@ -17,39 +17,11 @@ st.set_page_config(
 
 # Import theme utilities
 from utils.theme import load_premium_theme
+from utils.ui import render_sidebar_header, render_sidebar_navigation
 
 # Sidebar Navigation
-# Sidebar Navigation
-col_logo, col_title = st.sidebar.columns([1, 4])
-with col_logo:
-    logo_path = os.path.join(current_dir, "assets", "greenchips_logo.jpeg")
-    if os.path.exists(logo_path):
-        st.image(logo_path, use_container_width=True)
-    else:
-        st.warning("Logo not found")
-
-with col_title:
-    st.markdown("<h2 style='margin: 0; padding: 0;'>Green Chips</h2>", unsafe_allow_html=True)
-
-# Custom CSS for Round Logo
-st.markdown("""
-<style>
-    [data-testid="stSidebar"] img {
-        border-radius: 50%;
-        object-fit: cover;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-st.sidebar.caption("Premium Market Intelligence")
-
-# Load Premium White Theme
-load_premium_theme()
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("Navigation")
-st.sidebar.page_link("pages/01_market_pulse.py", label="📊 Market Pulse Dashboard", icon="🌐")
-st.sidebar.page_link("app.py", label="📖 Help & Guide", icon="📚")
+render_sidebar_header()
+render_sidebar_navigation()
 
 st.sidebar.markdown("---")
 
@@ -80,12 +52,9 @@ st.markdown("""
 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 60px 40px; border-radius: 20px; margin-bottom: 30px;
             box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);">
-    <h1 style="color: white; margin: 0; font-size: 3rem; font-weight: 800;">
+    <h1 style="color: white !important; margin: 0; font-size: 3rem; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
         📚 MarketPulse Help & Guide
     </h1>
-    <p style="color: rgba(255,255,255,0.9); font-size: 1.3rem; margin: 15px 0 0 0;">
-        Your complete guide to mastering market analysis and identifying trading opportunities
-    </p>
 </div>
 """, unsafe_allow_html=True)
 

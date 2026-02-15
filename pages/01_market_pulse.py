@@ -12,15 +12,15 @@ project_root = os.path.dirname(current_dir)
 if project_root not in sys.path:
     sys.path.append(project_root)
 
-# Custom CSS for Round Logo
-st.markdown("""
-<style>
-    [data-testid="stSidebar"] img {
-        border-radius: 50%;
-        object-fit: cover;
-    }
-</style>
-""", unsafe_allow_html=True)
+# Page Config (Must be first Streamlit command)
+st.set_page_config(
+    page_title="Market Pulse | Green Chips Analytics",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+
 
 # Import components and data fetchers
 from data.fetchers.market_data import fetch_market_data, get_market_status, fetch_nifty_50_data
@@ -34,6 +34,7 @@ from utils.market_time import MarketSchedule
 from utils.theme import load_premium_theme
 from utils.auto_refresh import setup_auto_refresh, render_refresh_controls, get_last_refresh_time
 from utils.error_handler import safe_data_fetch, handle_empty_data, ErrorBoundary
+from utils.ui import render_sidebar_header, render_sidebar_navigation
 
 # Load Premium White Theme
 try:
@@ -46,9 +47,11 @@ setup_auto_refresh(default_interval=300)  # 5 minutes default
 
 # Sidebar: Auto-Refresh Controls
 with st.sidebar:
+    render_sidebar_header()
+    render_sidebar_navigation()
+    
     st.markdown("### ⚙️ Settings")
 
-    # Auto-refresh controls
     # Auto-refresh controls
     should_refresh = render_refresh_controls()
     if should_refresh:
@@ -75,35 +78,8 @@ with st.sidebar:
     
     # About
     st.markdown("### ℹ️ About")
-    col_logo, col_text = st.columns([1, 3])
-    with col_logo:
-         # Project root is defined at the top of the file
-         logo_path = os.path.join(project_root, "marketpulse", "assets", "greenchips_logo.jpeg")
-         # Actually project_root might be d:\Vijay GCP based on the sys.path append logic?
-         # Check lines 10-11: 
-         # current_dir = os.path.dirname(os.path.abspath(__file__)) # .../pages
-         # project_root = os.path.dirname(current_dir) # .../marketpulse
-         # Wait, if project_root is .../marketpulse, then assets is directly in project_root.
-         
-         # Let's verify standard structure:
-         # marketpulse/
-         #   app.py
-         #   assets/
-         #   pages/
-         #     01_market_pulse.py
-         
-         # so if current_dir is pages/, project_root (parent) is marketpulse/.
-         # then assets is os.path.join(project_root, "assets")
-         
-         logo_path = os.path.join(project_root, "assets", "greenchips_logo.jpeg")
-         if os.path.exists(logo_path):
-            st.image(logo_path, use_container_width=True)
-         else:
-            # Fallback for different cwd
-             st.caption("🟢")
-
-    with col_text:
-        st.caption("**Green Chips**")
+    
+    st.caption("**Green Chips**")
         
     st.caption("Real-time market intelligence.")
     st.caption("Version 1.0")
@@ -148,8 +124,7 @@ def fetch_sector_performance_cached(market_id):
     return fetch_sector_performance(market_id)
 
 # Page Title and Header (Ultra-Compact)
-col_header, col_notify = st.columns([10, 1])
-# Page Title and Header (Ultra-Compact)
+logo_path = os.path.join(project_root, "assets", "greenchips_logo.jpeg")
 col_header, col_notify = st.columns([10, 1])
 with col_header:
     # Function to load image as base64
