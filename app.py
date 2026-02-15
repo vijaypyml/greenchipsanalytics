@@ -10,7 +10,7 @@ if current_dir not in sys.path:
 # Page Config
 st.set_page_config(
     page_title="Green Chips Analytics - Help & Guide",
-    page_icon="🟢",
+    page_icon="assets/favcon.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )

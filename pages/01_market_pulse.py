@@ -15,7 +15,7 @@ if project_root not in sys.path:
 # Page Config (Must be first Streamlit command)
 st.set_page_config(
     page_title="Market Pulse | Green Chips Analytics",
-    page_icon="📊",
+    page_icon="../assets/favcon.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
