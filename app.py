@@ -22,7 +22,11 @@ from utils.theme import load_premium_theme
 # Sidebar Navigation
 col_logo, col_title = st.sidebar.columns([1, 4])
 with col_logo:
-    st.image("assets/greenchips_logo.jpeg", use_column_width=True)
+    logo_path = os.path.join(current_dir, "assets", "greenchips_logo.jpeg")
+    if os.path.exists(logo_path):
+        st.image(logo_path, use_container_width=True)
+    else:
+        st.warning("Logo not found")
 
 with col_title:
     st.markdown("<h2 style='margin: 0; padding: 0;'>Green Chips</h2>", unsafe_allow_html=True)

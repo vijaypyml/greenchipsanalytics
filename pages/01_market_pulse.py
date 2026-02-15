@@ -77,7 +77,31 @@ with st.sidebar:
     st.markdown("### ℹ️ About")
     col_logo, col_text = st.columns([1, 3])
     with col_logo:
-         st.image("assets/greenchips_logo.jpeg", use_column_width=True)
+         # Project root is defined at the top of the file
+         logo_path = os.path.join(project_root, "marketpulse", "assets", "greenchips_logo.jpeg")
+         # Actually project_root might be d:\Vijay GCP based on the sys.path append logic?
+         # Check lines 10-11: 
+         # current_dir = os.path.dirname(os.path.abspath(__file__)) # .../pages
+         # project_root = os.path.dirname(current_dir) # .../marketpulse
+         # Wait, if project_root is .../marketpulse, then assets is directly in project_root.
+         
+         # Let's verify standard structure:
+         # marketpulse/
+         #   app.py
+         #   assets/
+         #   pages/
+         #     01_market_pulse.py
+         
+         # so if current_dir is pages/, project_root (parent) is marketpulse/.
+         # then assets is os.path.join(project_root, "assets")
+         
+         logo_path = os.path.join(project_root, "assets", "greenchips_logo.jpeg")
+         if os.path.exists(logo_path):
+            st.image(logo_path, use_container_width=True)
+         else:
+            # Fallback for different cwd
+             st.caption("🟢")
+
     with col_text:
         st.caption("**Green Chips**")
         
