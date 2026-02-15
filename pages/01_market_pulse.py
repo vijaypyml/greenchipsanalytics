@@ -149,8 +149,29 @@ def fetch_sector_performance_cached(market_id):
 
 # Page Title and Header (Ultra-Compact)
 col_header, col_notify = st.columns([10, 1])
+# Page Title and Header (Ultra-Compact)
+col_header, col_notify = st.columns([10, 1])
 with col_header:
-    st.markdown("<h3 style='margin: 0; padding: 0; font-size: 1.2rem;'>🟢 Green Chips Analytics</h3>", unsafe_allow_html=True)
+    # Function to load image as base64
+    def get_img_as_base64(file_path):
+        import base64
+        with open(file_path, "rb") as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
+
+    if os.path.exists(logo_path):
+        img_base64 = get_img_as_base64(logo_path)
+        img_html = f'<img src="data:image/jpeg;base64,{img_base64}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 10px;">'
+    else:
+        img_html = '<span style="font-size: 30px; vertical-align: middle; margin-right: 10px;">🟢</span>'
+
+    st.markdown(f"""
+        <div style="display: flex; align-items: center;">
+            {img_html}
+            <h3 style="margin: 0; padding: 0; font-size: 1.2rem; display: inline-block; vertical-align: middle;">Green Chips Analytics</h3>
+        </div>
+    """, unsafe_allow_html=True)
+    
     st.caption("Real-time global market intelligence")
 
 with col_notify:
