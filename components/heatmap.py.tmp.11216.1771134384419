@@ -1,0 +1,95 @@
+import streamlit as st
+import plotly.express as px
+import pandas as pd
+import numpy as np
+
+def render_heatmap(data=None):
+    """
+    Renders a market heatmap using Plotly Treemap.
+    If no data is provided, generates mock data for NIFTY 50.
+    """
+    if data is None:
+        # Mock Data for NIFTY 50 Sectors
+        sectors = ['Financial Services', 'IT', 'Oil & Gas', 'Consumer Goods', 'Automobile', 'Metals', 'Pharma', 'Construction', 'Telecom', 'Power']
+        
+        # Generator for mock stock data
+        mock_data = []
+        for sector in sectors:
+            num_stocks = np.random.randint(3, 8)
+            for i in range(num_stocks):
+                symbol = f"{sector[:3].upper()}_{i+1}"
+                market_cap = np.random.randint(1000, 200000)  # Random Market Cap
+                change_pct = np.random.normal(0, 1.5)  # Random % Change
+                mock_data.append({
+                    "Sector": sector,
+                    "Symbol": symbol,
+                    "Market Cap": market_cap,
+                    "Change %": change_pct
+                })
+        
+        df = pd.DataFrame(mock_data)
+    else:
+        # Data passed from app is already a DataFrame
+        df = data if isinstance(data, pd.DataFrame) else pd.DataFrame(data)
+        
+        # Safety: Ensure Market Cap is positive
+        if 'Market Cap' in df.columns:
+            df = df[df['Market Cap'] > 0]
+            
+        if df.empty:
+            st.warning("No valid data for Heatmap")
+            return
+
+    # Premium White Theme Color Scale
+    text_color = '#1a1a1a'  # Dark text for light background
+
+    # Enhanced gradient: Deep Red -> Red -> Light Grey -> Green -> Deep Green
+    color_scale = [
+        [0.0, '#d63031'],    # Deep Red (heavy loss)
+        [0.2, '#ff4757'],    # Red (loss)
+        [0.4, '#ff6b81'],    # Light Red
+        [0.5, '#f1f3f5'],    # Very Light Grey (neutral)
+        [0.6, '#51cf66'],    # Light Green
+        [0.8, '#00d48a'],    # Green (gain)
+        [1.0, '#00a86b']     # Deep Green (heavy gain)
+    ]
+
+    # Color scale: Red to Green with better gradient
+    fig = px.treemap(
+        df,
+        path=[px.Constant("NIFTY 50"), 'Sector', 'Symbol'],
+        values='Market Cap',
+        color='Change %',
+        color_continuous_scale=color_scale,
+        color_continuous_midpoint=0,
+        custom_data=['Change %', 'Price']
+    )
+
+    fig.update_traces(
+        textposition='middle center',
+        textfont=dict(size=13, color=text_color, family="Inter, sans-serif"),
+        hovertemplate='<b>%{label}</b><br>Price: ₹%{customdata[1]:.2f}<br>Change: <b>%{customdata[0]:+.2f}%</b><br>Market Cap: ₹%{value:,.0f} Cr<extra></extra>',
+        marker=dict(
+            line=dict(width=2, color='#1e1e2e' if theme == 'dark' else '#ffffff'),
+            cornerradius=5
+        )
+    )
+
+    fig.update_layout(
+        margin=dict(t=10, l=0, r=0, b=0),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        height=550,
+        font=dict(family="Inter, sans-serif"),
+        coloraxis_colorbar=dict(
+            title="Change %",
+            thickness=15,
+            len=0.7,
+            bgcolor='rgba(30, 30, 46, 0.8)' if theme == 'dark' else 'rgba(255, 255, 255, 0.8)',
+            bordercolor='#8899aa',
+            borderwidth=1,
+            tickfont=dict(color=text_color)
+        )
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)

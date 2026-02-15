@@ -1,0 +1,104 @@
+"""
+Market card component for displaying individual market data.
+"""
+
+import streamlit as st
+import plotly.graph_objects as go
+from utils.formatters import format_currency, format_percentage
+
+# Color constants
+COLOR_POSITIVE = "#00d48a"
+COLOR_NEGATIVE = "#ff4757"
+RGBA_POSITIVE = "0, 212, 138"
+RGBA_NEGATIVE = "255, 71, 87"
+
+
+def _get_currency_symbol(symbol: str) -> str:
+    """
+    Determines the appropriate currency symbol based on the ticker symbol.
+
+    Args:
+        symbol: Ticker symbol (e.g., "^NSEI", "USDINR=X")
+
+    Returns:
+        str: Currency symbol (e.g., "₹", "$", "")
+    """
+    if symbol.endswith(".NS") or symbol in ["^NSEI", "^BSESN", "^NSEBANK", "^INDIAVIX"]:
+        return "₹"
+    elif "INR" in symbol:
+        return "₹"
+    elif symbol.startswith("BTC") or symbol.startswith("ETH"):
+        return "$"  # Crypto prices in USD
+    elif "USD" in symbol or symbol.startswith("^"):
+        return "$"
+    else:
+        return ""
+
+
+def render_market_card(data):
+    """
+    Renders a market card with price, change percentage, and sparkline chart.
+
+    Args:
+        data: Dictionary containing market data with keys:
+              - name: Display name
+              - symbol: Ticker symbol
+              - price: Current price
+              - change: Price change
+              - change_pct: Percentage change
+              - sparkline_data: List of historical prices (optional)
+
+    Returns:
+        None: Renders directly to Streamlit
+    """
+    if not data:
+        st.warning("Data unavailable")
+        return
+
+    # Determine colors based on change
+    is_positive = data['change'] >= 0
+    border_color = COLOR_POSITIVE if is_positive else COLOR_NEGATIVE
+    fill_rgba = RGBA_POSITIVE if is_positive else RGBA_NEGATIVE
+
+    # Determine appropriate currency symbol
+    currency_symbol = _get_currency_symbol(data.get('symbol', ''))
+
+    # Get sentiment data
+    sentiment_arrow = data.get('sentiment_arrow', '➡️')
+    rsi = data.get('rsi', None)
+    volatility = data.get('volatility', None)
+
+    # Custom CSS for the card with sentiment arrow
+    card_style = f"""
+    <div class="market-card" style="border-left: 5px solid {border_color};">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h4 style="margin:0; font-size: 1rem;">{data['name']}</h4>
+            <span style="font-size: 1.2rem;" title="Sentiment Signal">{sentiment_arrow}</span>
+        </div>
+        <h2 style="margin:0; font-size: 1.5rem;">{format_currency(data['price'], currency_symbol)}</h2>
+        <p style="margin:0; color: {border_color};">
+            {format_percentage(data['change_pct'])} ({data['change']:+.2f})
+        </p>
+    </div>
+    """
+    st.markdown(card_style, unsafe_allow_html=True)
+
+    # Render sparkline if data is available
+    if 'sparkline_data' in data and data['sparkline_data']:
+        fig = go.Figure(data=go.Scatter(
+            y=data['sparkline_data'],
+            mode='lines',
+            line=dict(color=border_color, width=2),
+            fill='tozeroy',
+            fillcolor=f"rgba({fill_rgba}, 0.1)"
+        ))
+        fig.update_layout(
+            margin=dict(l=0, r=0, t=2, b=0),
+            height=35,
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            hovermode=False
+        )
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})

@@ -1,0 +1,247 @@
+"""
+Risk-On / Risk-Off meter component.
+Synthesizes multiple market signals to determine overall market regime.
+"""
+
+import streamlit as st
+import plotly.graph_objects as go
+import pandas as pd
+
+
+def calculate_risk_sentiment(market_data_dict):
+    """
+    Calculate overall market risk sentiment from multiple data points.
+
+    Logic:
+    - Risk-On: Stocks ↑, VIX ↓, Crypto ↑, Commodities ↑, DXY ↓
+    - Risk-Off: Stocks ↓, VIX ↑, Crypto ↓, Commodities ↓, Gold ↑, DXY ↑
+
+    Args:
+        market_data_dict: Dictionary of market data with sentiment scores
+
+    Returns:
+        dict: {
+            'score': int (-100 to +100),
+            'regime': str ('RISK-ON' | 'NEUTRAL' | 'RISK-OFF'),
+            'components': dict of individual contributions
+        }
+    """
+    score = 0
+    components = {}
+
+    try:
+        # Equity Markets (40% weight) - Risk-On asset
+        equity_symbols = ['^GSPC', '^NSEI', '^FTSE', '^N225']
+        equity_score = 0
+        equity_count = 0
+
+        for symbol in equity_symbols:
+            if symbol in market_data_dict and market_data_dict[symbol]:
+                data = market_data_dict[symbol]
+                change_pct = data.get('change_pct', 0)
+                equity_score += change_pct
+                equity_count += 1
+
+        if equity_count > 0:
+            avg_equity = equity_score / equity_count
+            equity_contribution = avg_equity * 4  # Scale up
+            score += equity_contribution
+            components['equities'] = {'avg_change': avg_equity, 'contribution': equity_contribution}
+
+        # VIX (20% weight) - Inverse risk indicator
+        if '^VIX' in market_data_dict and market_data_dict['^VIX']:
+            vix_change = market_data_dict['^VIX'].get('change_pct', 0)
+            vix_contribution = -vix_change * 2  # Inverse: VIX up = Risk-Off
+            score += vix_contribution
+            components['vix'] = {'change': vix_change, 'contribution': vix_contribution}
+
+        # Crypto (15% weight) - Risk-On asset
+        crypto_symbols = ['BTC-USD', 'ETH-USD']
+        crypto_score = 0
+        crypto_count = 0
+
+        for symbol in crypto_symbols:
+            if symbol in market_data_dict and market_data_dict[symbol]:
+                data = market_data_dict[symbol]
+                change_pct = data.get('change_pct', 0)
+                crypto_score += change_pct
+                crypto_count += 1
+
+        if crypto_count > 0:
+            avg_crypto = crypto_score / crypto_count
+            crypto_contribution = avg_crypto * 1.5
+            score += crypto_contribution
+            components['crypto'] = {'avg_change': avg_crypto, 'contribution': crypto_contribution}
+
+        # Gold (10% weight) - Safe Haven (inverse)
+        if 'GC=F' in market_data_dict and market_data_dict['GC=F']:
+            gold_change = market_data_dict['GC=F'].get('change_pct', 0)
+            # Gold up slightly positive in risk-off, but not always
+            # We'll treat it as neutral to slightly negative for risk-on
+            gold_contribution = -gold_change * 0.5
+            score += gold_contribution
+            components['gold'] = {'change': gold_change, 'contribution': gold_contribution}
+
+        # Dollar Index (15% weight) - Safe Haven (inverse)
+        if 'DX-Y.NYB' in market_data_dict and market_data_dict['DX-Y.NYB']:
+            dxy_change = market_data_dict['DX-Y.NYB'].get('change_pct', 0)
+            dxy_contribution = -dxy_change * 1.5  # DXY up = Risk-Off
+            score += dxy_contribution
+            components['dxy'] = {'change': dxy_change, 'contribution': dxy_contribution}
+
+        # Normalize score to -100 to +100 range
+        # Typical range is -20 to +20, so multiply by 5
+        score = min(max(score * 3, -100), 100)
+
+    except Exception as e:
+        score = 0
+        components['error'] = str(e)
+
+    # Determine regime
+    if score > 30:
+        regime = 'RISK-ON'
+        color = '#00d48a'  # Green
+        emoji = '🟢'
+    elif score < -30:
+        regime = 'RISK-OFF'
+        color = '#ff4757'  # Red
+        emoji = '🔴'
+    else:
+        regime = 'NEUTRAL'
+        color = '#ffa502'  # Orange
+        emoji = '🟡'
+
+    return {
+        'score': score,
+        'regime': regime,
+        'color': color,
+        'emoji': emoji,
+        'components': components
+    }
+
+
+def render_risk_meter(market_data_dict):
+    """
+    Renders the Risk-On/Risk-Off meter as a gauge chart.
+
+    Args:
+        market_data_dict: Dictionary of market data
+    """
+    risk_data = calculate_risk_sentiment(market_data_dict)
+
+    score = risk_data['score']
+    regime = risk_data['regime']
+    emoji = risk_data['emoji']
+    color = risk_data['color']
+
+    # Create gauge chart
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number+delta",
+        value=score,
+        domain={'x': [0, 1], 'y': [0, 1]},
+        title={'text': f"{emoji} Market Regime", 'font': {'size': 24}},
+        delta={'reference': 0, 'increasing': {'color': "#00d48a"}, 'decreasing': {'color': "#ff4757"}},
+        gauge={
+            'axis': {'range': [-100, 100], 'tickwidth': 1, 'tickcolor': "white"},
+            'bar': {'color': color, 'thickness': 0.75},
+            'bgcolor': "rgba(0,0,0,0)",
+            'borderwidth': 2,
+            'bordercolor': "white",
+            'steps': [
+                {'range': [-100, -30], 'color': 'rgba(255, 71, 87, 0.3)'},  # Risk-Off zone
+                {'range': [-30, 30], 'color': 'rgba(255, 165, 2, 0.3)'},     # Neutral zone
+                {'range': [30, 100], 'color': 'rgba(0, 212, 138, 0.3)'}      # Risk-On zone
+            ],
+            'threshold': {
+                'line': {'color': color, 'width': 4},
+                'thickness': 0.75,
+                'value': score
+            }
+        }
+    ))
+
+    fig.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font={'color': "white", 'family': "Inter"},
+        height=300,
+        margin=dict(l=20, r=20, t=80, b=20)
+    )
+
+    # Display the gauge
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+
+    # Display regime interpretation
+    st.markdown(f"""
+    <div style="text-align: center; padding: 10px;">
+        <h2 style="color: {color}; margin: 0;">{regime}</h2>
+        <p style="color: #8899aa; font-size: 0.9rem; margin-top: 5px;">
+            Score: <strong>{score:.0f}/100</strong>
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Show components breakdown in expander
+    with st.expander("📊 View Component Breakdown"):
+        components = risk_data.get('components', {})
+
+        if components:
+            breakdown_data = []
+            for component, data in components.items():
+                if isinstance(data, dict) and 'contribution' in data:
+                    breakdown_data.append({
+                        'Component': component.upper(),
+                        'Change': f"{data.get('change', data.get('avg_change', 0)):.2f}%",
+                        'Contribution': f"{data['contribution']:.1f}"
+                    })
+
+            if breakdown_data:
+                df = pd.DataFrame(breakdown_data)
+                st.dataframe(df, hide_index=True, use_container_width=True)
+
+    # Interpretation guide
+    with st.expander("ℹ️ How to Interpret"):
+        st.markdown("""
+        **Risk-On (> +30)**
+        - Markets favor growth assets (stocks, crypto, commodities)
+        - Investors have higher risk appetite
+        - VIX is low, dollar is weak
+        - **Strategy**: Overweight equities, commodities
+
+        **Neutral (-30 to +30)**
+        - Mixed signals across asset classes
+        - Market uncertainty or transition phase
+        - **Strategy**: Balanced portfolio, watch for regime shift
+
+        **Risk-Off (< -30)**
+        - Markets favor safe haven assets (gold, bonds, dollar)
+        - Investors are risk-averse
+        - VIX is elevated, stocks declining
+        - **Strategy**: Defensive positioning, cash/bonds
+        """)
+
+
+def get_risk_regime_text(score):
+    """
+    Get a text description of the current risk regime.
+
+    Args:
+        score: Risk score (-100 to +100)
+
+    Returns:
+        str: Description of market regime
+    """
+    if score > 60:
+        return "Strong Risk-On: Markets are in full bullish mode. High confidence."
+    elif score > 30:
+        return "Risk-On: Positive sentiment. Growth assets favored."
+    elif score > 0:
+        return "Cautiously Optimistic: Leaning risk-on but watch for reversals."
+    elif score > -30:
+        return "Cautiously Defensive: Slight risk-off bias emerging."
+    elif score > -60:
+        return "Risk-Off: Defensive positioning recommended."
+    else:
+        return "Strong Risk-Off: Flight to safety in full swing. High caution."

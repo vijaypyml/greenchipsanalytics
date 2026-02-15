@@ -1,0 +1,181 @@
+import yfinance as yf
+import pandas as pd
+import streamlit as st
+from datetime import datetime
+import time
+import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from utils.logger import logger
+
+@st.cache_data(ttl=60)
+def fetch_market_data(symbol: str, period: str = "5d"):
+    """
+    Fetches market data for a given symbol using yfinance.
+
+    Args:
+        symbol: Ticker symbol (e.g., "^NSEI", "AAPL")
+        period: Time period for historical data (default: "5d")
+
+    Returns:
+        dict: Market data including price, change, and sparkline
+        None: If data fetch fails or no data available
+    """
+    try:
+        logger.info(f"Fetching market data for {symbol}")
+        ticker = yf.Ticker(symbol)
+        history = ticker.history(period=period)
+
+        if history.empty:
+            logger.warning(f"No historical data available for {symbol}")
+            return None
+
+        # Validate data
+        if 'Close' not in history.columns or len(history) == 0:
+            logger.error(f"Invalid data structure for {symbol}")
+            return None
+
+        current_price = float(history['Close'].iloc[-1])
+        previous_close = float(history['Close'].iloc[-2]) if len(history) > 1 else current_price
+        change = current_price - previous_close
+        change_pct = (change / previous_close) * 100 if previous_close != 0 else 0
+
+        # Get symbol info with fallback
+        try:
+            info = ticker.info
+            name = info.get('shortName', symbol)
+        except Exception as e:
+            logger.warning(f"Could not fetch info for {symbol}: {e}")
+            name = symbol
+
+        logger.debug(f"Successfully fetched data for {symbol}: ${current_price:.2f}")
+
+        return {
+            "symbol": symbol,
+            "name": name,
+            "price": current_price,
+            "change": change,
+            "change_pct": change_pct,
+            "sparkline_data": history['Close'].tolist(),
+            "history": history
+        }
+    except Exception as e:
+        logger.error(f"Error fetching data for {symbol}: {str(e)}", exc_info=True)
+        return None
+
+@st.cache_data(ttl=300)
+def get_market_status():
+    """
+    Mock function to return market status. 
+    """
+    return {
+        "INDIA": "Open",
+        "US": "Closed",
+        "EU": "Open",
+        "ASIA": "Closed"
+    }
+
+@st.cache_data(ttl=60*60*24) # Cache heavy info for 24 hours
+def get_symbol_info(symbol):
+    try:
+        ticker = yf.Ticker(symbol)
+        return ticker.info
+    except:
+        return {}
+
+@st.cache_data(ttl=600)
+def fetch_nifty_50_data():
+    """
+    Fetches data for all NIFTY 50 stocks.
+
+    Uses batch download for price/change (fast).
+    Uses cached individual info for Market Cap (slow first run, fast subsequent).
+
+    Returns:
+        pd.DataFrame: DataFrame with columns: Symbol, Price, Change, Change %, Market Cap, Sector, Volume
+        Empty DataFrame if fetch fails
+    """
+    from config.constants import NIFTY_50_SYMBOLS
+
+    logger.info("Fetching NIFTY 50 data...")
+
+    try:
+        # 1. Batch download for Price/Change
+        data = yf.download(NIFTY_50_SYMBOLS, period="2d", group_by='ticker', progress=False)
+
+        if data.empty:
+            logger.error("No data returned from yfinance batch download")
+            return pd.DataFrame()
+
+        results = []
+        failed_symbols = []
+
+        for symbol in NIFTY_50_SYMBOLS:
+            try:
+                # Handle Data Structure: data[symbol] might differ based on yf version/result
+                if symbol not in data:
+                    logger.debug(f"Symbol {symbol} not in downloaded data")
+                    failed_symbols.append(symbol)
+                    continue
+
+                df_price = data[symbol]
+
+                if df_price.empty or len(df_price) < 1:
+                    logger.debug(f"Empty price data for {symbol}")
+                    failed_symbols.append(symbol)
+                    continue
+
+                # Validate required columns
+                if 'Close' not in df_price.columns:
+                    logger.warning(f"Missing Close column for {symbol}")
+                    failed_symbols.append(symbol)
+                    continue
+
+                current_close = float(df_price['Close'].iloc[-1])
+                prev_close = float(df_price['Close'].iloc[-2]) if len(df_price) > 1 else current_close
+                change = current_close - prev_close
+                pct_change = (change / prev_close) * 100 if prev_close != 0 else 0
+
+                # 2. Market Cap (Via separate cached function)
+                info = get_symbol_info(symbol)
+                market_cap = info.get('marketCap', 0)
+                sector = info.get('sector', 'Unknown')
+
+                # Fallback: If Market Cap is 0/None, use Price * Volume as proxy
+                # This ensures we don't get "Weights sum to zero" error in Treemap
+                if not market_cap or market_cap == 0:
+                    vol = float(df_price['Volume'].iloc[-1]) if 'Volume' in df_price.columns else 0
+                    # Minimum market cap to avoid zero weights
+                    market_cap = max((current_close * vol), 1.0)
+                    logger.debug(f"Using fallback market cap for {symbol}: {market_cap}")
+
+                volume = float(df_price['Volume'].iloc[-1]) if 'Volume' in df_price.columns else 0
+
+                results.append({
+                    "Symbol": symbol,
+                    "Price": current_close,
+                    "Change": change,
+                    "Change %": pct_change,
+                    "Market Cap": market_cap,
+                    "Sector": sector,
+                    "Volume": volume
+                })
+
+            except Exception as e:
+                logger.error(f"Error processing {symbol}: {str(e)}")
+                failed_symbols.append(symbol)
+                continue
+
+        if failed_symbols:
+            logger.warning(f"Failed to fetch data for {len(failed_symbols)} symbols: {', '.join(failed_symbols[:5])}...")
+
+        logger.info(f"Successfully fetched data for {len(results)}/{len(NIFTY_50_SYMBOLS)} NIFTY 50 stocks")
+
+        return pd.DataFrame(results)
+
+    except Exception as e:
+        logger.error(f"Critical error fetching NIFTY data: {str(e)}", exc_info=True)
+        st.error(f"Error fetching NIFTY data. Please try again later.")
+        return pd.DataFrame()

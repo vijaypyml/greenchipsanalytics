@@ -1,0 +1,188 @@
+"""
+Multi-market data fetchers for India, USA, and other markets.
+Provides unified interface for fetching data across different markets.
+"""
+
+import yfinance as yf
+import pandas as pd
+from datetime import datetime, timedelta
+from config.markets import get_market_config
+
+
+def fetch_index_constituents(market_id, limit=None):
+    """
+    Fetch constituents data for a market's main index.
+
+    Args:
+        market_id: Market identifier (e.g., "INDIA", "USA")
+        limit: Optional limit on number of constituents to return
+
+    Returns:
+        pd.DataFrame: DataFrame with columns [Symbol, Price, Change %, Volume, Market Cap, Sector]
+    """
+    market_config = get_market_config(market_id)
+
+    if market_id == "INDIA":
+        from data.fetchers.market_data import fetch_nifty_50_data
+        return fetch_nifty_50_data()
+
+    elif market_id == "USA":
+        return fetch_sp500_data(limit=limit)
+
+    else:
+        # Default to empty DataFrame
+        return pd.DataFrame()
+
+
+def fetch_sp500_data(limit=100):
+    """
+    Fetch S&P 500 constituents data (top N by market cap for performance).
+
+    Args:
+        limit: Number of top stocks to fetch (default 100 for performance)
+
+    Returns:
+        pd.DataFrame: DataFrame with S&P 500 constituent data
+    """
+    try:
+        # Top S&P 500 stocks by market cap (for performance, fetch top 100)
+        # In production, you'd fetch from a static list of S&P 500 tickers
+        sp500_top_tickers = [
+            'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'BRK-B', 'UNH', 'JNJ',
+            'JPM', 'V', 'XOM', 'PG', 'MA', 'HD', 'CVX', 'ABBV', 'MRK', 'AVGO',
+            'KO', 'PEP', 'COST', 'LLY', 'TMO', 'WMT', 'ADBE', 'ACN', 'MCD', 'CSCO',
+            'ABT', 'NFLX', 'CRM', 'DHR', 'VZ', 'NKE', 'INTC', 'TXN', 'DIS', 'PM',
+            'CMCSA', 'UPS', 'NEE', 'COP', 'RTX', 'QCOM', 'AMD', 'HON', 'INTU', 'ORCL',
+            'WFC', 'MS', 'GS', 'BA', 'CAT', 'SPGI', 'AMGN', 'IBM', 'SBUX', 'BLK',
+            'LOW', 'PLD', 'GE', 'AXP', 'BKNG', 'GILD', 'MMC', 'ADI', 'C', 'MDLZ',
+            'NOW', 'DE', 'ISRG', 'TJX', 'CVS', 'ADP', 'REGN', 'VRTX', 'SYK', 'ZTS',
+            'MO', 'CB', 'PGR', 'CI', 'SO', 'LRCX', 'DUK', 'BDX', 'EOG', 'ITW',
+            'SLB', 'BSX', 'ETN', 'APD', 'MU', 'HUM', 'NOC', 'TMUS', 'EL', 'SCHW'
+        ]
+
+        tickers = sp500_top_tickers[:limit] if limit else sp500_top_tickers
+
+        data_list = []
+        for ticker in tickers:
+            try:
+                stock = yf.Ticker(ticker)
+                info = stock.info
+                hist = stock.history(period='1d')
+
+                if not hist.empty and info:
+                    current_price = hist['Close'].iloc[-1]
+                    prev_close = info.get('previousClose', current_price)
+                    change = current_price - prev_close
+                    change_pct = (change / prev_close * 100) if prev_close > 0 else 0
+
+                    data_list.append({
+                        'Symbol': ticker,
+                        'Price': current_price,
+                        'Change %': change_pct,
+                        'Volume': hist['Volume'].iloc[-1] if not hist.empty else 0,
+                        'Market Cap': info.get('marketCap', 0) / 1e7,  # Convert to Cr equivalent
+                        'Sector': info.get('sector', 'Unknown')
+                    })
+            except Exception as e:
+                continue
+
+        df = pd.DataFrame(data_list)
+        return df if not df.empty else pd.DataFrame()
+
+    except Exception as e:
+        print(f"Error fetching S&P 500 data: {e}")
+        return pd.DataFrame()
+
+
+def fetch_market_index_history(market_id, period_years=5):
+    """
+    Fetch historical data for a market's main index.
+
+    Args:
+        market_id: Market identifier
+        period_years: Number of years of history to fetch
+
+    Returns:
+        pd.DataFrame: Historical price data
+    """
+    market_config = get_market_config(market_id)
+    index_symbol = market_config['main_index']['symbol']
+
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=period_years * 365)
+
+    try:
+        ticker = yf.Ticker(index_symbol)
+        hist_data = ticker.history(start=start_date, end=end_date)
+        return hist_data
+    except Exception as e:
+        print(f"Error fetching historical data for {index_symbol}: {e}")
+        return pd.DataFrame()
+
+
+def fetch_sector_performance(market_id):
+    """
+    Fetch sector performance data for a market.
+
+    Args:
+        market_id: Market identifier
+
+    Returns:
+        dict: Sector performance data with change percentages
+    """
+    market_config = get_market_config(market_id)
+    sectors = market_config.get('sectors', {})
+
+    sector_data = {}
+    for sector_name, sector_symbol in sectors.items():
+        try:
+            ticker = yf.Ticker(sector_symbol)
+            info = ticker.info
+            hist = ticker.history(period='5d')
+
+            if not hist.empty and info:
+                current_price = hist['Close'].iloc[-1]
+                # Use previousClose from info for accurate comparison
+                prev_close = info.get('previousClose', current_price)
+                change_pct = ((current_price - prev_close) / prev_close * 100) if prev_close > 0 else 0
+
+                sector_data[sector_name] = {
+                    'symbol': sector_symbol,
+                    'price': current_price,
+                    'change_pct': change_pct,
+                    'prev_close': prev_close
+                }
+        except Exception as e:
+            print(f"Error fetching sector {sector_name} ({sector_symbol}): {e}")
+            continue
+
+    return sector_data
+
+
+def get_market_vix_data(market_id, period_years=5):
+    """
+    Fetch VIX (volatility index) data for a market.
+
+    Args:
+        market_id: Market identifier
+        period_years: Years of history
+
+    Returns:
+        pd.DataFrame: VIX historical data
+    """
+    market_config = get_market_config(market_id)
+    vix_symbol = market_config.get('vix_symbol')
+
+    if not vix_symbol:
+        return pd.DataFrame()
+
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=period_years * 365)
+
+    try:
+        ticker = yf.Ticker(vix_symbol)
+        vix_data = ticker.history(start=start_date, end=end_date)
+        return vix_data
+    except Exception as e:
+        print(f"Error fetching VIX data: {e}")
+        return pd.DataFrame()
