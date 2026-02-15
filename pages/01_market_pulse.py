@@ -12,6 +12,16 @@ project_root = os.path.dirname(current_dir)
 if project_root not in sys.path:
     sys.path.append(project_root)
 
+# Custom CSS for Round Logo
+st.markdown("""
+<style>
+    [data-testid="stSidebar"] img {
+        border-radius: 50%;
+        object-fit: cover;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # Import components and data fetchers
 from data.fetchers.market_data import fetch_market_data, get_market_status, fetch_nifty_50_data
 from data.fetchers.multi_market_data import fetch_index_constituents, fetch_market_index_history, get_market_vix_data
@@ -39,6 +49,7 @@ with st.sidebar:
     st.markdown("### ⚙️ Settings")
 
     # Auto-refresh controls
+    # Auto-refresh controls
     should_refresh = render_refresh_controls()
     if should_refresh:
         st.cache_data.clear()
@@ -55,11 +66,22 @@ with st.sidebar:
     st.caption("💾 Data caching enabled")
 
     st.markdown("---")
-
+    
+    # Logo in Sidebar Bottom? Or Top?
+    # Navigation is handled by multipage app structure usually.
+    # Let's add the logo ID at the top if possible, but st.sidebar is sequential.
+    # The user manual had it at the top. 
+    # Let's put it in the "About" section or just clean up.
+    
     # About
     st.markdown("### ℹ️ About")
-    st.caption("**Green Chips Analytics**")
-    st.caption("Real-time market intelligence powered by advanced analytics.")
+    col_logo, col_text = st.columns([1, 3])
+    with col_logo:
+         st.image("assets/greenchips_logo.jpeg", use_column_width=True)
+    with col_text:
+        st.caption("**Green Chips**")
+        
+    st.caption("Real-time market intelligence.")
     st.caption("Version 1.0")
 
 # Cached data fetching functions for performance

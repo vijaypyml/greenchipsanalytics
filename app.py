@@ -19,7 +19,24 @@ st.set_page_config(
 from utils.theme import load_premium_theme
 
 # Sidebar Navigation
-st.sidebar.title("🟢 Green Chips Analytics")
+# Sidebar Navigation
+col_logo, col_title = st.sidebar.columns([1, 4])
+with col_logo:
+    st.image("assets/greenchips_logo.jpeg", use_column_width=True)
+
+with col_title:
+    st.markdown("<h2 style='margin: 0; padding: 0;'>Green Chips</h2>", unsafe_allow_html=True)
+
+# Custom CSS for Round Logo
+st.markdown("""
+<style>
+    [data-testid="stSidebar"] img {
+        border-radius: 50%;
+        object-fit: cover;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 st.sidebar.caption("Premium Market Intelligence")
 
 # Load Premium White Theme
